@@ -1,0 +1,745 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Pitch → hiA表記 / 音域グラフ / ビブラート検知（絵文字）</title>
+  <style>
+    :root{
+      --bg:#0b0f19;
+      --card:#10182b;
+      --card2:#0f172a;
+      --text:#e6e9f2;
+      --muted:#9aa3b2;
+      --line:#23304b;
+      --accent:#7c3aed;
+      --accent2:#22c55e;
+      --warn:#f59e0b;
+      --bad:#ef4444;
+      --shadow: 0 18px 60px rgba(0,0,0,.35);
+      --radius: 18px;
+    }
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: radial-gradient(1200px 700px at 20% 10%, rgba(124,58,237,.35), transparent 60%),
+                  radial-gradient(900px 600px at 80% 20%, rgba(34,197,94,.22), transparent 60%),
+                  var(--bg);
+      color:var(--text);
+      padding: 22px;
+    }
+    .wrap{ max-width: 980px; margin: 0 auto; }
+    header{
+      display:flex; align-items:flex-end; justify-content:space-between; gap:14px; flex-wrap:wrap;
+      margin-bottom: 14px;
+    }
+    h1{
+      margin:0;
+      font-size: 20px;
+      letter-spacing:.2px;
+      color: rgba(230,233,242,.96);
+    }
+    .sub{
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .actions{ display:flex; gap:10px; flex-wrap:wrap; }
+    button{
+      border:1px solid rgba(255,255,255,.08);
+      background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03));
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 12px;
+      cursor:pointer;
+      transition: transform .06s ease, border-color .2s ease, background .2s ease;
+      box-shadow: 0 8px 24px rgba(0,0,0,.25);
+      font-size: 14px;
+    }
+    button:hover{ border-color: rgba(255,255,255,.16); transform: translateY(-1px); }
+    button:disabled{ opacity:.45; cursor:not-allowed; transform:none; }
+    .primary{
+      border-color: rgba(124,58,237,.35);
+      background: linear-gradient(180deg, rgba(124,58,237,.35), rgba(124,58,237,.12));
+    }
+    .danger{
+      border-color: rgba(239,68,68,.35);
+      background: linear-gradient(180deg, rgba(239,68,68,.28), rgba(239,68,68,.10));
+    }
+
+    .card{
+      background: linear-gradient(180deg, rgba(16,24,43,.92), rgba(15,23,42,.92));
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: var(--shadow);
+    }
+    .topRow{
+      display:flex; gap: 14px; flex-wrap:wrap; align-items: stretch;
+    }
+    .bigPitch{
+      flex: 1 1 320px;
+      padding: 14px;
+      border-radius: 16px;
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+      border:1px solid rgba(255,255,255,.06);
+    }
+    .pitchLabel{
+      font-size: 48px;
+      font-weight: 800;
+      letter-spacing: .5px;
+      line-height: 1.05;
+    }
+    .pitchMeta{
+      margin-top: 6px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      color: rgba(230,233,242,.92);
+      font-size: 13px;
+    }
+    .hint{
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .vibBox{
+      flex: 1 1 260px;
+      padding: 14px;
+      border-radius: 16px;
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+      border:1px solid rgba(255,255,255,.06);
+      display:flex; flex-direction:column; gap:10px;
+      justify-content:space-between;
+      min-height: 124px;
+    }
+    .vibTitle{ font-size: 12px; color: var(--muted); letter-spacing:.3px; }
+    .vibState{
+      font-size: 26px;
+      font-weight: 800;
+      display:flex; align-items:center; gap:10px;
+    }
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.04);
+      font-size: 12px;
+      color: rgba(230,233,242,.92);
+      width: fit-content;
+    }
+    .barWrap{
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.07);
+      overflow:hidden;
+    }
+    .bar{
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, rgba(124,58,237,.95), rgba(34,197,94,.9));
+      transition: width .15s ease;
+    }
+
+    .canvasWrap{
+      margin-top: 14px;
+      padding: 14px;
+      border-radius: 16px;
+      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+      border:1px solid rgba(255,255,255,.06);
+    }
+    canvas{ width:100%; height: 240px; display:block; }
+
+    .stats{
+      display:flex; gap:10px; flex-wrap:wrap; margin-top: 10px;
+    }
+    .pill{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      color: rgba(230,233,242,.92);
+      padding: 7px 10px;
+      border-radius: 999px;
+      border:1px solid rgba(255,255,255,.08);
+      background: rgba(0,0,0,.12);
+    }
+
+    details{ margin-top: 12px; }
+    summary{ cursor:pointer; color: rgba(230,233,242,.95); }
+    .grid{ display:grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+    .input{
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 12px;
+      background: rgba(0,0,0,.18);
+      color: var(--text);
+      outline: none;
+    }
+    label{ font-size: 12px; color: var(--muted); }
+    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    @media (max-width: 820px){
+      .grid{ grid-template-columns: 1fr; }
+      .pitchLabel{ font-size: 44px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>Pitch → hiA表記 / 音域グラフ / ビブラート検知（絵文字）</h1>
+        <div class="sub">マイク入力で音程を表示。ビブラートが出ると絵文字で分かるようにしています。</div>
+      </div>
+      <div class="actions">
+        <button class="primary" id="start">🎙️ 開始</button>
+        <button id="stop" disabled>⏹ 停止</button>
+        <button class="danger" id="reset" disabled>🧹 リセット</button>
+      </div>
+    </header>
+
+    <div class="card">
+      <div class="topRow">
+        <div class="bigPitch">
+          <div class="pitchLabel" id="hiLabel">---</div>
+          <div class="pitchMeta" id="detail">Hz: -- / Note: -- / Cents: --</div>
+          <div class="hint">目安：A4=hiA（440Hz） / C4=mid2C</div>
+        </div>
+
+        <div class="vibBox">
+          <div class="vibTitle">VIBRATO DETECTOR</div>
+          <div class="vibState" id="vibState">😐 まだビブラートなし</div>
+          <div class="badge" id="vibBadge">判定: OFF</div>
+          <div class="barWrap" title="安定度（一定時間続くほど増える）">
+            <div class="bar" id="vibBar"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="canvasWrap">
+        <canvas id="graph" width="900" height="240"></canvas>
+        <div class="stats">
+          <div class="pill" id="minInfo">Min: --</div>
+          <div class="pill" id="maxInfo">Max: --</div>
+          <div class="pill" id="spanInfo">Range: --</div>
+        </div>
+
+        <details>
+          <summary>設定（必要なら）</summary>
+          <div class="grid">
+            <div>
+              <label class="mono">グラフ表示Hz下限</label>
+              <input class="input mono" id="minHz" type="number" value="65" min="20" max="2000" step="1">
+            </div>
+            <div>
+              <label class="mono">グラフ表示Hz上限</label>
+              <input class="input mono" id="maxHz" type="number" value="1200" min="50" max="5000" step="1">
+            </div>
+            <div>
+              <label class="mono">ビブラート解析窓 秒（2.5推奨）</label>
+              <input class="input mono" id="vibWin" type="number" value="2.5" min="0.8" max="5" step="0.1">
+            </div>
+            <div>
+              <label class="mono">検知感度（小さいほど拾いやすい）</label>
+              <input class="input mono" id="vibThr" type="number" value="0.02" min="0.00" max="0.30" step="0.01">
+            </div>
+          </div>
+          <div class="sub" style="margin-top:8px;">
+            コツ：同じ音を「うー」で伸ばすと一番検知しやすいです。
+          </div>
+        </details>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  // ========= UI =========
+  const startBtn = document.getElementById("start");
+  const stopBtn  = document.getElementById("stop");
+  const resetBtn = document.getElementById("reset");
+
+  const hiLabel  = document.getElementById("hiLabel");
+  const detail   = document.getElementById("detail");
+
+  const vibState = document.getElementById("vibState");
+  const vibBadge = document.getElementById("vibBadge");
+  const vibBar   = document.getElementById("vibBar");
+
+  const canvas = document.getElementById("graph");
+  const ctx = canvas.getContext("2d");
+
+  const minInfo = document.getElementById("minInfo");
+  const maxInfo = document.getElementById("maxInfo");
+  const spanInfo = document.getElementById("spanInfo");
+
+  const minHzInput = document.getElementById("minHz");
+  const maxHzInput = document.getElementById("maxHz");
+  const vibWinInput = document.getElementById("vibWin");
+  const vibThrInput = document.getElementById("vibThr");
+
+  // ========= Audio =========
+  let audioCtx, analyser, buf, src, stream, rafId;
+
+  // ========= Settings =========
+  const HISTORY_LEN = 260;
+  const SAMPLE_EVERY = 2;
+
+  let MIN_HZ = 65;
+  let MAX_HZ = 1200;
+
+  let VIB_WINDOW_SEC = 2.5;
+  let VIB_THRESH_SD = 0.02; // 半音SD
+  const VIB_F_MIN = 3.5;    // ビブラート帯域（Hz）
+  const VIB_F_MAX = 9.0;
+
+  // 「ビブラート確定」に必要な継続時間（チカチカ防止）
+  const VIB_CONFIRM_SEC = 0.35;
+  const VIB_LOSE_SEC = 0.25;
+
+  // ========= State =========
+  let frame = 0;
+  let history = [];              // {midiFloat}
+  let minMidi = null;
+  let maxMidi = null;
+
+  // vibrato analysis series: {t, midiFloat}
+  let vibSeries = [];
+
+  // ビブラート継続ゲージ（0〜1）
+  let vibHold = 0;
+  let lastVibGoodT = 0;
+  let lastVibBadT = 0;
+
+  // ========= Pitch helpers =========
+  const NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+
+  function freqToMidi(f) {
+    return 69 + 12 * Math.log2(f / 440);
+  }
+
+  function midiToNote(midiFloat) {
+    const m = Math.round(midiFloat);
+    const name = NOTE_NAMES[(m % 12 + 12) % 12];
+    const octave = Math.floor(m / 12) - 1;
+    const cents = Math.round((midiFloat - m) * 100);
+    return { name, octave, cents, midi: m, midiFloat };
+  }
+
+  // --- hi/mid2 ルール（C4=mid2C / A4=hiA） ---
+  function octavePrefix(octave) {
+    if (octave <= 1) return "low";
+    if (octave === 2) return "mid1";
+    if (octave === 3) return "mid2";
+    if (octave === 4) return "hi";
+    if (octave === 5) return "hihi";
+    return "hihihi";
+  }
+
+  function formatHi(name, octave) {
+    const prefix = octavePrefix(octave);
+    // #を"is"に寄せる（C# -> Cis）※好みで変更OK
+    return `${prefix}${name.replace("#","is")}`;
+  }
+
+  function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
+
+  // ========= Autocorrelation pitch =========
+  function autoCorrelate(buf, sampleRate) {
+    let rms = 0;
+    for (let i = 0; i < buf.length; i++) rms += buf[i] * buf[i];
+    rms = Math.sqrt(rms / buf.length);
+    if (rms < 0.01) return -1;
+
+    let start = 0, end = buf.length - 1;
+    while (start < end && Math.abs(buf[start]) < 0.2) start++;
+    while (end > start && Math.abs(buf[end]) < 0.2) end--;
+    const trimmed = buf.slice(start, end);
+    const size = trimmed.length;
+    const c = new Float32Array(size);
+
+    for (let lag = 0; lag < size; lag++) {
+      let sum = 0;
+      for (let i = 0; i < size - lag; i++) sum += trimmed[i] * trimmed[i + lag];
+      c[lag] = sum;
+    }
+
+    let d = 0;
+    while (d < size - 1 && c[d] > c[d + 1]) d++;
+
+    let maxval = -1, maxpos = -1;
+    for (let i = d; i < size; i++) {
+      if (c[i] > maxval) { maxval = c[i]; maxpos = i; }
+    }
+    if (maxpos <= 0) return -1;
+
+    // 放物線補間
+    const x1 = maxpos - 1, x2 = maxpos, x3 = maxpos + 1;
+    if (x1 >= 0 && x3 < size) {
+      const y1 = c[x1], y2 = c[x2], y3 = c[x3];
+      const a = (y1 + y3 - 2 * y2) / 2;
+      const b = (y3 - y1) / 2;
+      if (a) {
+        const shift = -b / (2 * a);
+        return sampleRate / (maxpos + shift);
+      }
+    }
+    return sampleRate / maxpos;
+  }
+
+  // ========= Graph =========
+  function drawGraph() {
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0,0,w,h);
+
+    // 背景
+    ctx.fillStyle = "rgba(0,0,0,.12)";
+    ctx.fillRect(0,0,w,h);
+
+    // 枠
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(255,255,255,.10)";
+    ctx.strokeRect(0.5,0.5,w-1,h-1);
+
+    const minMidiView = freqToMidi(MIN_HZ);
+    const maxMidiView = freqToMidi(MAX_HZ);
+
+    // 横グリッド（オクターブ）
+    ctx.strokeStyle = "rgba(255,255,255,.06)";
+    for (let m = Math.ceil(minMidiView/12)*12; m <= maxMidiView; m += 12) {
+      const y = h - ( (m - minMidiView) / (maxMidiView - minMidiView) ) * h;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
+    }
+
+    // min/max ライン
+    if (minMidi !== null) {
+      const y = h - ((minMidi - minMidiView) / (maxMidiView - minMidiView)) * h;
+      ctx.strokeStyle = "rgba(236,72,153,.75)";
+      ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke();
+    }
+    if (maxMidi !== null) {
+      const y = h - ((maxMidi - minMidiView) / (maxMidiView - minMidiView)) * h;
+      ctx.strokeStyle = "rgba(34,211,238,.75)";
+      ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke();
+    }
+
+    // 推移ライン（グラデっぽく）
+    if (history.length >= 2) {
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "rgba(230,233,242,.92)";
+      ctx.beginPath();
+      for (let i = 0; i < history.length; i++) {
+        const x = (i / (HISTORY_LEN - 1)) * w;
+        const midi = history[i].midiFloat;
+        const y = h - ((midi - minMidiView) / (maxMidiView - minMidiView)) * h;
+        const yy = clamp(y, -50, h+50);
+        if (i === 0) ctx.moveTo(x, yy);
+        else ctx.lineTo(x, yy);
+      }
+      ctx.stroke();
+      ctx.lineWidth = 1;
+    }
+  }
+
+  function updateStats() {
+    if (minMidi === null || maxMidi === null) {
+      minInfo.textContent = "Min: --";
+      maxInfo.textContent = "Max: --";
+      spanInfo.textContent = "Range: --";
+      return;
+    }
+    const minNote = midiToNote(minMidi);
+    const maxNote = midiToNote(maxMidi);
+    const span = maxMidi - minMidi;
+
+    minInfo.textContent = `Min: ${formatHi(minNote.name, minNote.octave)} (${minNote.name}${minNote.octave})`;
+    maxInfo.textContent = `Max: ${formatHi(maxNote.name, maxNote.octave)} (${maxNote.name}${maxNote.octave})`;
+
+    const oct = Math.floor(span / 12);
+    const sem = span % 12;
+    spanInfo.textContent = `Range: ${span} semitones (${oct} oct + ${sem})`;
+  }
+
+  // ========= Vibrato estimate (DFT in band) =========
+  function estimateVibratoQuality(series) {
+    // return {state: 'OFF'|'WEAK'|'ON', strength01, stable01}
+    if (series.length < 24) return null;
+
+    const dt = (series[series.length - 1].t - series[0].t) / (series.length - 1);
+    if (!isFinite(dt) || dt <= 0) return null;
+    const fs = 1 / dt;
+
+    const x = series.map(p => p.midiFloat);
+
+    // デトレンド（移動平均）
+    const maSec = 0.20; // 少し短めにしてビブラートを残しやすく
+    const maN = Math.max(3, Math.round(maSec * fs));
+    const trend = new Array(x.length).fill(0);
+    let acc = 0;
+    for (let i = 0; i < x.length; i++) {
+      acc += x[i];
+      if (i >= maN) acc -= x[i - maN];
+      const n = Math.min(i + 1, maN);
+      trend[i] = acc / n;
+    }
+    const y = x.map((v, i) => v - trend[i]);
+
+    // 揺れが小さすぎると無効（感度は入力で変更）
+    const N = y.length;
+    const mean = y.reduce((a,b)=>a+b,0)/N;
+    const sd = Math.sqrt(y.reduce((a,b)=>a+(b-mean)*(b-mean),0)/N);
+    if (sd < VIB_THRESH_SD) return { on:false, strength: 0, sd };
+
+    // ハニング窓
+    for (let i = 0; i < N; i++) {
+      const w = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / (N - 1));
+      y[i] *= w;
+    }
+
+    // 帯域DFT（ナイーブ）
+    const kMin = Math.max(1, Math.floor(VIB_F_MIN * N / fs));
+    const kMax = Math.min(Math.floor(VIB_F_MAX * N / fs), Math.floor(N/2)-1);
+    if (kMax <= kMin) return null;
+
+    let bestP = 0;
+    let sumP = 0;
+    let cntP = 0;
+
+    for (let k = kMin; k <= kMax; k++) {
+      let re = 0, im = 0;
+      const ang = -2 * Math.PI * k / N;
+      for (let n = 0; n < N; n++) {
+        const a = ang * n;
+        re += y[n] * Math.cos(a);
+        im += y[n] * Math.sin(a);
+      }
+      const p = re*re + im*im;
+      sumP += p; cntP++;
+      if (p > bestP) bestP = p;
+    }
+
+    const avgP = sumP / Math.max(1, cntP);
+    const snr = bestP / (avgP + 1e-12); // どれだけピークっぽいか
+
+    // strength: SNR と sd から雑に 0〜1 化
+    // - snr が 1〜6 程度で成長
+    // - sd（揺れ量）が大きいほど強い
+    const snr01 = clamp((snr - 1.2) / 4.0, 0, 1);
+    const sd01  = clamp((sd - VIB_THRESH_SD) / 0.10, 0, 1);
+    const strength = clamp(0.55*snr01 + 0.45*sd01, 0, 1);
+
+    // “周期っぽさ”が弱い場合はWEAKへ
+    const on = (snr >= 2.2); // ここを下げると拾いやすいが誤検知↑
+    return { on, strength, snr, sd };
+  }
+
+  function setVibUI(mode, strength01) {
+    // mode: 'OFF' | 'WEAK' | 'ON' | 'STABLE'
+    const pct = Math.round(clamp(strength01,0,1) * 100);
+    vibBar.style.width = pct + "%";
+
+    if (mode === "STABLE") {
+      vibState.textContent = "🌪️ 安定ビブラート！";
+      vibBadge.textContent = "判定: STABLE";
+      vibBadge.style.borderColor = "rgba(34,197,94,.45)";
+      vibBadge.style.background = "rgba(34,197,94,.12)";
+    } else if (mode === "ON") {
+      vibState.textContent = "🌀 ビブラート！";
+      vibBadge.textContent = "判定: ON";
+      vibBadge.style.borderColor = "rgba(124,58,237,.55)";
+      vibBadge.style.background = "rgba(124,58,237,.14)";
+    } else if (mode === "WEAK") {
+      vibState.textContent = "🫧 ちょい揺れ";
+      vibBadge.textContent = "判定: WEAK";
+      vibBadge.style.borderColor = "rgba(245,158,11,.50)";
+      vibBadge.style.background = "rgba(245,158,11,.12)";
+    } else {
+      vibState.textContent = "😐 まだビブラートなし";
+      vibBadge.textContent = "判定: OFF";
+      vibBadge.style.borderColor = "rgba(255,255,255,.14)";
+      vibBadge.style.background = "rgba(255,255,255,.05)";
+    }
+  }
+
+  // ========= Settings apply =========
+  function applySettings() {
+    const minHz = Number(minHzInput.value);
+    const maxHz = Number(maxHzInput.value);
+    const vibWin = Number(vibWinInput.value);
+    const vibThr = Number(vibThrInput.value);
+
+    if (isFinite(minHz) && minHz > 10) MIN_HZ = minHz;
+    if (isFinite(maxHz) && maxHz > MIN_HZ + 10) MAX_HZ = maxHz;
+    if (isFinite(vibWin) && vibWin >= 0.8) VIB_WINDOW_SEC = vibWin;
+    if (isFinite(vibThr) && vibThr >= 0) VIB_THRESH_SD = vibThr;
+
+    drawGraph();
+  }
+  minHzInput.addEventListener("change", applySettings);
+  maxHzInput.addEventListener("change", applySettings);
+  vibWinInput.addEventListener("change", applySettings);
+  vibThrInput.addEventListener("change", applySettings);
+
+  // ========= Main loop =========
+  function render() {
+    analyser.getFloatTimeDomainData(buf);
+    const f = autoCorrelate(buf, audioCtx.sampleRate);
+    const nowT = performance.now() / 1000;
+
+    if (f > 0 && f >= 40 && f <= 2000) {
+      const midiFloat = freqToMidi(f);
+      const { name, octave, cents } = midiToNote(midiFloat);
+
+      hiLabel.textContent = formatHi(name, octave);
+      detail.textContent = `Hz: ${f.toFixed(2)} / Note: ${name}${octave} / Cents: ${cents >= 0 ? "+" : ""}${cents}`;
+
+      // --- graph history ---
+      frame++;
+      if (frame % SAMPLE_EVERY === 0) {
+        history.push({ midiFloat });
+        if (history.length > HISTORY_LEN) history.shift();
+
+        const midiRounded = Math.round(midiFloat);
+        if (minMidi === null || midiRounded < minMidi) minMidi = midiRounded;
+        if (maxMidi === null || midiRounded > maxMidi) maxMidi = midiRounded;
+
+        updateStats();
+        drawGraph();
+      }
+
+      // --- vibrato series ---
+      vibSeries.push({ t: nowT, midiFloat });
+      const cutoff = nowT - VIB_WINDOW_SEC;
+      while (vibSeries.length && vibSeries[0].t < cutoff) vibSeries.shift();
+
+      // vibrato 판단（間引き）
+      if (frame % (SAMPLE_EVERY * 6) === 0) {
+        const vib = estimateVibratoQuality(vibSeries);
+
+        // vibHold を更新（確定しやすく＆消えにくく）
+        if (vib && vib.on) {
+          lastVibGoodT = nowT;
+          // 強いほど早く溜まる
+          vibHold += 0.22 + 0.55 * vib.strength;
+        } else if (vib && !vib.on && vib.strength > 0.15) {
+          // 揺れはあるが周期性が弱い -> WEAK
+          lastVibBadT = nowT;
+          vibHold += 0.06 + 0.12 * vib.strength;
+        } else {
+          // 何もない -> 減衰
+          vibHold -= 0.18;
+        }
+        vibHold = clamp(vibHold, 0, 1);
+
+        // 状態決定（チカチカ防止の簡易ヒステリシス）
+        const sinceGood = nowT - lastVibGoodT;
+        const sinceBad = nowT - lastVibBadT;
+
+        let mode = "OFF";
+        let strength01 = vib ? vib.strength : 0;
+
+        // “直近で良かった”を少し保持
+        const goodRecent = sinceGood < VIB_LOSE_SEC;
+
+        if (goodRecent && vibHold > 0.82) mode = "STABLE";
+        else if (goodRecent) mode = "ON";
+        else if (sinceBad < 0.35 && vibHold > 0.18) mode = "WEAK";
+
+        // 追加：一定時間以上「ON」が続くと安定扱いに寄せる（確定感）
+        // （vibHoldがその役目なので、ここは視覚補助）
+        if (mode === "ON" && vibHold > 0.65) mode = "STABLE";
+
+        setVibUI(mode, vibHold);
+      }
+
+    } else {
+      // 無音
+      frame++;
+      hiLabel.textContent = "---";
+      detail.textContent = `Hz: -- / Note: -- / Cents: --`;
+
+      // vibHold を徐々に落とす
+      vibHold = clamp(vibHold - 0.22, 0, 1);
+      if (frame % (SAMPLE_EVERY * 8) === 0) {
+        setVibUI(vibHold > 0.35 ? "WEAK" : "OFF", vibHold);
+        drawGraph();
+      }
+    }
+
+    rafId = requestAnimationFrame(render);
+  }
+
+  async function start() {
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+    });
+
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 2048;
+    buf = new Float32Array(analyser.fftSize);
+
+    src = audioCtx.createMediaStreamSource(stream);
+    src.connect(analyser);
+
+    startBtn.disabled = true;
+    stopBtn.disabled = false;
+    resetBtn.disabled = false;
+
+    applySettings();
+    drawGraph();
+    updateStats();
+    setVibUI("OFF", 0);
+    vibHold = 0;
+    lastVibGoodT = 0;
+    lastVibBadT = 0;
+
+    render();
+  }
+
+  function stop() {
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = null;
+
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    stream = null;
+
+    if (audioCtx) audioCtx.close();
+    audioCtx = null;
+
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+  }
+
+  function resetAll() {
+    history = [];
+    minMidi = null;
+    maxMidi = null;
+    vibSeries = [];
+    frame = 0;
+
+    vibHold = 0;
+    lastVibGoodT = 0;
+    lastVibBadT = 0;
+
+    hiLabel.textContent = "---";
+    detail.textContent = `Hz: -- / Note: -- / Cents: --`;
+    setVibUI("OFF", 0);
+    drawGraph();
+    updateStats();
+  }
+
+  startBtn.addEventListener("click", () => start().catch(err => {
+    alert("マイクが使えませんでした: " + err.message);
+  }));
+  stopBtn.addEventListener("click", stop);
+  resetBtn.addEventListener("click", resetAll);
+})();
+</script>
+</body>
+</html>
