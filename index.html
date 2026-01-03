@@ -129,6 +129,7 @@
 
     details{ margin-top: 12px; }
     summary{ cursor:pointer; color: rgba(230,233,242,.95); }
+
     .grid{ display:grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
     .input{
       width: 100%;
@@ -143,9 +144,25 @@
     .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
     .row2{ display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
     input[type="range"]{ width:100%; }
+
+    /* range + number の並び */
+    .rangeRow{ display:flex; gap:10px; align-items:center; }
+    .rangeRow input[type="range"]{ flex: 1 1 auto; }
+    .numMini{
+      width: 110px;
+      padding: 8px 10px;
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 12px;
+      background: rgba(0,0,0,.18);
+      color: var(--text);
+      outline: none;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
     @media (max-width: 820px){
       .grid{ grid-template-columns: 1fr; }
       .pitchLabel{ font-size: 44px; }
+      .numMini{ width: 96px; }
     }
   </style>
 </head>
@@ -154,7 +171,7 @@
     <header>
       <div>
         <h1>Pitch → hiA表記 / 音域グラフ / ビブラート検知（絵文字）</h1>
-        <div class="sub">グラフの速さ・見た目（高さ/線）も調整できます。設定はCookie保存。</div>
+        <div class="sub">マイクブースト(最大400%) / バー↔数値同期 / 設定はCookie保存。</div>
       </div>
       <div class="actions">
         <button class="primary" id="start">🎙️ 開始</button>
@@ -183,11 +200,13 @@
 
       <div class="canvasWrap">
         <canvas id="graph" width="900" height="240"></canvas>
+
         <div class="stats">
           <div class="pill" id="minInfo">Min: --</div>
           <div class="pill" id="maxInfo">Max: --</div>
           <div class="pill" id="spanInfo">Range: --</div>
           <div class="pill mono" id="speedInfo">Graph: --</div>
+          <div class="pill mono" id="gainInfo">Mic Gain: --</div>
         </div>
 
         <details>
@@ -214,22 +233,40 @@
 
           <div class="grid">
             <div>
+              <label class="mono">🎛 マイクブースト（0%〜400%）</label>
+              <div class="rangeRow">
+                <input class="mono" id="micGainR" type="range" min="0" max="400" value="100" step="1">
+                <input class="numMini" id="micGainN" type="number" min="0" max="400" value="100" step="1">
+              </div>
+              <div class="sub mono" id="micGainLabel">100%</div>
+            </div>
+
+            <div>
               <label class="mono">ビブラートバー向き</label>
               <select class="input mono" id="barOri">
                 <option value="h">横</option>
                 <option value="v">縦</option>
               </select>
             </div>
+
             <div>
               <label class="mono">バー長さ（px）</label>
-              <input class="mono" id="barLen" type="range" min="80" max="420" value="240">
+              <div class="rangeRow">
+                <input class="mono" id="barLenR" type="range" min="80" max="420" value="240" step="1">
+                <input class="numMini" id="barLenN" type="number" min="80" max="420" value="240" step="1">
+              </div>
               <div class="sub mono" id="barLenLabel">240px</div>
             </div>
+
             <div>
               <label class="mono">バー太さ（px）</label>
-              <input class="mono" id="barThk" type="range" min="6" max="28" value="10">
+              <div class="rangeRow">
+                <input class="mono" id="barThkR" type="range" min="6" max="28" value="10" step="1">
+                <input class="numMini" id="barThkN" type="number" min="6" max="28" value="10" step="1">
+              </div>
               <div class="sub mono" id="barThkLabel">10px</div>
             </div>
+
             <div>
               <label class="mono">バー位置（縦向き時）</label>
               <select class="input mono" id="barSide">
@@ -238,27 +275,40 @@
                 <option value="left">左寄せ</option>
               </select>
             </div>
-          </div>
 
-          <div class="grid">
             <div>
-              <label class="mono">グラフ表示時間（秒）※大きいほど「ゆっくり流れる」</label>
-              <input class="mono" id="graphSec" type="range" min="2" max="20" value="8" step="1">
+              <label class="mono">グラフ表示時間（秒）</label>
+              <div class="rangeRow">
+                <input class="mono" id="graphSecR" type="range" min="2" max="20" value="8" step="1">
+                <input class="numMini" id="graphSecN" type="number" min="2" max="20" value="8" step="1">
+              </div>
               <div class="sub mono" id="graphSecLabel">8s</div>
             </div>
+
             <div>
-              <label class="mono">点の追加間隔（ms）※小さいほど「速く更新」</label>
-              <input class="mono" id="graphMs" type="range" min="20" max="300" value="60" step="5">
+              <label class="mono">点の追加間隔（ms）</label>
+              <div class="rangeRow">
+                <input class="mono" id="graphMsR" type="range" min="20" max="300" value="60" step="5">
+                <input class="numMini" id="graphMsN" type="number" min="20" max="300" value="60" step="5">
+              </div>
               <div class="sub mono" id="graphMsLabel">60ms</div>
             </div>
+
             <div>
               <label class="mono">グラフ高さ（px）</label>
-              <input class="mono" id="graphH" type="range" min="160" max="420" value="240" step="10">
+              <div class="rangeRow">
+                <input class="mono" id="graphHR" type="range" min="160" max="420" value="240" step="10">
+                <input class="numMini" id="graphHN" type="number" min="160" max="420" value="240" step="10">
+              </div>
               <div class="sub mono" id="graphHLabel">240px</div>
             </div>
+
             <div>
               <label class="mono">線の太さ</label>
-              <input class="mono" id="graphLW" type="range" min="1" max="5" value="2" step="1">
+              <div class="rangeRow">
+                <input class="mono" id="graphLWR" type="range" min="1" max="5" value="2" step="1">
+                <input class="numMini" id="graphLWN" type="number" min="1" max="5" value="2" step="1">
+              </div>
               <div class="sub mono" id="graphLWLabel">2</div>
             </div>
           </div>
@@ -268,6 +318,10 @@
             <button class="ghost" id="loadBtn">↩ 設定を読み込み</button>
             <button class="ghost" id="clearBtn">🧽 保存設定を消す</button>
           </div>
+
+          <div class="sub" style="margin-top:8px;">
+            注意：ブーストを上げすぎるとノイズも一緒に増幅します（宇宙の掟）。
+          </div>
         </details>
       </div>
     </div>
@@ -276,8 +330,9 @@
 <script>
 (() => {
   // ===== Cookie helper =====
-  const COOKIE_KEY = "pitch_tool_settings_v3";
+  const COOKIE_KEY = "pitch_tool_settings_v4";
   const COOKIE_DAYS = 365;
+
   const setCookie = (name, value, days) => {
     const d = new Date();
     d.setTime(d.getTime() + (days*24*60*60*1000));
@@ -314,6 +369,7 @@
   const maxInfo = document.getElementById("maxInfo");
   const spanInfo = document.getElementById("spanInfo");
   const speedInfo = document.getElementById("speedInfo");
+  const gainInfo = document.getElementById("gainInfo");
 
   const minHzInput = document.getElementById("minHz");
   const maxHzInput = document.getElementById("maxHz");
@@ -321,20 +377,36 @@
   const vibThrInput = document.getElementById("vibThr");
 
   const barOriSel = document.getElementById("barOri");
-  const barLenRng = document.getElementById("barLen");
-  const barThkRng = document.getElementById("barThk");
   const barSideSel = document.getElementById("barSide");
+
+  // range + number pairs
+  const micGainR = document.getElementById("micGainR");
+  const micGainN = document.getElementById("micGainN");
+  const micGainLabel = document.getElementById("micGainLabel");
+
+  const barLenR = document.getElementById("barLenR");
+  const barLenN = document.getElementById("barLenN");
   const barLenLabel = document.getElementById("barLenLabel");
+
+  const barThkR = document.getElementById("barThkR");
+  const barThkN = document.getElementById("barThkN");
   const barThkLabel = document.getElementById("barThkLabel");
 
-  const graphSecRng = document.getElementById("graphSec");
-  const graphMsRng  = document.getElementById("graphMs");
-  const graphHRng   = document.getElementById("graphH");
-  const graphLWRng  = document.getElementById("graphLW");
+  const graphSecR = document.getElementById("graphSecR");
+  const graphSecN = document.getElementById("graphSecN");
   const graphSecLabel = document.getElementById("graphSecLabel");
-  const graphMsLabel  = document.getElementById("graphMsLabel");
-  const graphHLabel   = document.getElementById("graphHLabel");
-  const graphLWLabel  = document.getElementById("graphLWLabel");
+
+  const graphMsR = document.getElementById("graphMsR");
+  const graphMsN = document.getElementById("graphMsN");
+  const graphMsLabel = document.getElementById("graphMsLabel");
+
+  const graphHR = document.getElementById("graphHR");
+  const graphHN = document.getElementById("graphHN");
+  const graphHLabel = document.getElementById("graphHLabel");
+
+  const graphLWR = document.getElementById("graphLWR");
+  const graphLWN = document.getElementById("graphLWN");
+  const graphLWLabel = document.getElementById("graphLWLabel");
 
   const saveBtn = document.getElementById("saveBtn");
   const loadBtn = document.getElementById("loadBtn");
@@ -344,6 +416,7 @@
 
   // ========= Audio =========
   let audioCtx, analyser, buf, src, stream, rafId;
+  let gainNode = null; // ★追加
 
   // ========= Settings =========
   let MIN_HZ = 65;
@@ -362,13 +435,16 @@
   let BAR_SIDE = "auto";
 
   // Graph speed/appearance
-  let GRAPH_WINDOW_SEC = 8;     // 画面に見せる秒数
-  let GRAPH_SAMPLE_MS = 60;     // 何msごとに点を追加
-  let GRAPH_LINE_W = 2;         // 線の太さ
-  let HISTORY_LEN = 240;        // GRAPH_WINDOW_SEC / GRAPH_SAMPLE_MS から自動計算
+  let GRAPH_WINDOW_SEC = 8;
+  let GRAPH_SAMPLE_MS = 60;
+  let GRAPH_LINE_W = 2;
+  let HISTORY_LEN = 240;
+
+  // Mic boost (0.0 - 4.0)
+  let MIC_GAIN = 1.0;
 
   // ========= State =========
-  let history = [];   // {t, midiFloat}
+  let history = [];
   let minMidi = null;
   let maxMidi = null;
 
@@ -377,7 +453,7 @@
   let lastVibGoodT = 0;
   let lastVibBadT = 0;
 
-  let lastGraphSampleT = 0; // 点追加用
+  let lastGraphSampleT = 0;
 
   // ========= Pitch helpers =========
   const NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
@@ -399,6 +475,37 @@
   }
   const formatHi = (name, octave) => `${octavePrefix(octave)}${name.replace("#","is")}`;
   const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+
+  // ========= Range <-> Number sync helper =========
+  function bindRangeNumber(rangeEl, numEl, onChange) {
+    const min = Number(rangeEl.min);
+    const max = Number(rangeEl.max);
+    const step = Number(rangeEl.step || 1);
+
+    const clampTo = (v) => {
+      if (!isFinite(v)) return Number(rangeEl.value);
+      v = clamp(v, min, max);
+      // stepに寄せる（誤差防止）
+      const snapped = Math.round((v - min) / step) * step + min;
+      return Number(snapped.toFixed(10));
+    };
+
+    const setBoth = (v, silent=false) => {
+      const vv = clampTo(v);
+      rangeEl.value = String(vv);
+      numEl.value = String(vv);
+      if (!silent && onChange) onChange(vv);
+    };
+
+    rangeEl.addEventListener("input", () => setBoth(Number(rangeEl.value)));
+    rangeEl.addEventListener("change", () => setBoth(Number(rangeEl.value)));
+    numEl.addEventListener("input", () => setBoth(Number(numEl.value)));
+    numEl.addEventListener("change", () => setBoth(Number(numEl.value)));
+
+    // 初期同期
+    setBoth(Number(rangeEl.value), true);
+    return { set: setBoth };
+  }
 
   // ========= Autocorrelation =========
   function autoCorrelate(buf, sampleRate) {
@@ -445,7 +552,7 @@
   // ========= Graph =========
   function recomputeHistoryLen(){
     HISTORY_LEN = Math.max(10, Math.round((GRAPH_WINDOW_SEC * 1000) / GRAPH_SAMPLE_MS));
-    speedInfo.textContent = `Graph: ${GRAPH_WINDOW_SEC}s window / ${GRAPH_SAMPLE_MS}ms sample / points≈${HISTORY_LEN}`;
+    speedInfo.textContent = `Graph: ${GRAPH_WINDOW_SEC}s / ${GRAPH_SAMPLE_MS}ms / points≈${HISTORY_LEN}`;
   }
 
   function drawGraph() {
@@ -486,9 +593,8 @@
       ctx.lineWidth = GRAPH_LINE_W;
       ctx.strokeStyle = "rgba(230,233,242,.92)";
       ctx.beginPath();
-
       for (let i = 0; i < history.length; i++) {
-        const x = (i / (Math.max(1, history.length - 1))) * w;
+        const x = (i / Math.max(1, history.length - 1)) * w;
         const midi = history[i].midiFloat;
         const y = h - ((midi - minMidiView) / (maxMidiView - minMidiView)) * h;
         if (i === 0) ctx.moveTo(x, y);
@@ -580,7 +686,7 @@
     return { on, strength };
   }
 
-  // ========= Bar layout =========
+  // ========= Vib bar layout =========
   function setVibGauge(value01){
     const pct = Math.round(clamp(value01,0,1) * 100);
     if (BAR_ORI === "h") {
@@ -594,8 +700,8 @@
 
   function applyBarLayout() {
     BAR_ORI = barOriSel.value;
-    BAR_LEN = Number(barLenRng.value);
-    BAR_THK = Number(barThkRng.value);
+    BAR_LEN = Number(barLenR.value);
+    BAR_THK = Number(barThkR.value);
     BAR_SIDE = barSideSel.value;
 
     barLenLabel.textContent = `${BAR_LEN}px`;
@@ -646,25 +752,30 @@
     }
   }
 
-  // ========= Settings apply / save/load =========
+  // ========= Mic gain apply =========
+  function applyMicGainUI(percent) {
+    micGainLabel.textContent = `${percent}%`;
+    MIC_GAIN = clamp(percent / 100, 0, 4);
+    gainInfo.textContent = `Mic Gain: ${Math.round(MIC_GAIN*100)}% (x${MIC_GAIN.toFixed(2)})`;
+    if (gainNode) gainNode.gain.value = MIC_GAIN; // ★リアルタイム反映
+  }
+
+  // ========= Graph UI =========
   function applyGraphUI(){
-    GRAPH_WINDOW_SEC = Number(graphSecRng.value);
-    GRAPH_SAMPLE_MS  = Number(graphMsRng.value);
-    GRAPH_LINE_W     = Number(graphLWRng.value);
+    GRAPH_WINDOW_SEC = Number(graphSecR.value);
+    GRAPH_SAMPLE_MS  = Number(graphMsR.value);
+    GRAPH_LINE_W     = Number(graphLWR.value);
 
     graphSecLabel.textContent = `${GRAPH_WINDOW_SEC}s`;
     graphMsLabel.textContent  = `${GRAPH_SAMPLE_MS}ms`;
     graphLWLabel.textContent  = `${GRAPH_LINE_W}`;
 
-    // canvas height (css + actual)
-    const h = Number(graphHRng.value);
+    const h = Number(graphHR.value);
     graphHLabel.textContent = `${h}px`;
     canvas.height = h;
     canvas.style.height = h + "px";
 
     recomputeHistoryLen();
-
-    // 履歴が長すぎたらカット（短すぎてもOK）
     if (history.length > HISTORY_LEN) history = history.slice(history.length - HISTORY_LEN);
 
     drawGraph();
@@ -683,6 +794,7 @@
 
     applyBarLayout();
     applyGraphUI();
+    applyMicGainUI(Number(micGainR.value));
     drawGraph();
   }
 
@@ -692,14 +804,18 @@
       maxHz: Number(maxHzInput.value),
       vibWin: Number(vibWinInput.value),
       vibThr: Number(vibThrInput.value),
+
+      micGainPct: Number(micGainR.value),
+
       barOri: barOriSel.value,
-      barLen: Number(barLenRng.value),
-      barThk: Number(barThkRng.value),
+      barLen: Number(barLenR.value),
+      barThk: Number(barThkR.value),
       barSide: barSideSel.value,
-      graphSec: Number(graphSecRng.value),
-      graphMs: Number(graphMsRng.value),
-      graphH: Number(graphHRng.value),
-      graphLW: Number(graphLWRng.value),
+
+      graphSec: Number(graphSecR.value),
+      graphMs: Number(graphMsR.value),
+      graphH: Number(graphHR.value),
+      graphLW: Number(graphLWR.value),
     };
   }
 
@@ -711,15 +827,20 @@
     if (typeof o.vibWin === "number") vibWinInput.value = String(o.vibWin);
     if (typeof o.vibThr === "number") vibThrInput.value = String(o.vibThr);
 
+    if (typeof o.micGainPct === "number") {
+      micGainR.value = String(o.micGainPct);
+      micGainN.value = String(o.micGainPct);
+    }
+
     if (typeof o.barOri === "string") barOriSel.value = o.barOri;
-    if (typeof o.barLen === "number") barLenRng.value = String(o.barLen);
-    if (typeof o.barThk === "number") barThkRng.value = String(o.barThk);
+    if (typeof o.barLen === "number") { barLenR.value = String(o.barLen); barLenN.value = String(o.barLen); }
+    if (typeof o.barThk === "number") { barThkR.value = String(o.barThk); barThkN.value = String(o.barThk); }
     if (typeof o.barSide === "string") barSideSel.value = o.barSide;
 
-    if (typeof o.graphSec === "number") graphSecRng.value = String(o.graphSec);
-    if (typeof o.graphMs === "number") graphMsRng.value = String(o.graphMs);
-    if (typeof o.graphH === "number") graphHRng.value = String(o.graphH);
-    if (typeof o.graphLW === "number") graphLWRng.value = String(o.graphLW);
+    if (typeof o.graphSec === "number") { graphSecR.value = String(o.graphSec); graphSecN.value = String(o.graphSec); }
+    if (typeof o.graphMs === "number")  { graphMsR.value = String(o.graphMs);   graphMsN.value = String(o.graphMs); }
+    if (typeof o.graphH === "number")   { graphHR.value = String(o.graphH);     graphHN.value = String(o.graphH); }
+    if (typeof o.graphLW === "number")  { graphLWR.value = String(o.graphLW);   graphLWN.value = String(o.graphLW); }
 
     applySettings();
   }
@@ -740,7 +861,7 @@
   }
   function clearSettingsCookie() {
     deleteCookie(COOKIE_KEY);
-    toast("🧽 消しました");
+    toast("🧽 保存設定を消しました");
   }
 
   function onSettingChanged() {
@@ -748,12 +869,20 @@
     saveSettingsToCookie();
   }
 
-  // input/ change handlers
-  const changeEls = [minHzInput, maxHzInput, vibWinInput, vibThrInput, barOriSel, barSideSel];
-  changeEls.forEach(el => el.addEventListener("change", onSettingChanged));
+  // ===== bind ranges <-> numbers =====
+  const micGainBind = bindRangeNumber(micGainR, micGainN, (v)=>{ applyMicGainUI(v); onSettingChanged(); });
+  const barLenBind  = bindRangeNumber(barLenR, barLenN,  ()=>{ applyBarLayout(); onSettingChanged(); });
+  const barThkBind  = bindRangeNumber(barThkR, barThkN,  ()=>{ applyBarLayout(); onSettingChanged(); });
 
-  const inputEls = [barLenRng, barThkRng, graphSecRng, graphMsRng, graphHRng, graphLWRng];
-  inputEls.forEach(el => el.addEventListener("input", onSettingChanged));
+  const graphSecBind = bindRangeNumber(graphSecR, graphSecN, ()=>{ applyGraphUI(); onSettingChanged(); });
+  const graphMsBind  = bindRangeNumber(graphMsR, graphMsN,   ()=>{ applyGraphUI(); onSettingChanged(); });
+  const graphHBind   = bindRangeNumber(graphHR, graphHN,     ()=>{ applyGraphUI(); onSettingChanged(); });
+  const graphLWBind  = bindRangeNumber(graphLWR, graphLWN,   ()=>{ applyGraphUI(); onSettingChanged(); });
+
+  // change-only
+  [minHzInput, maxHzInput, vibWinInput, vibThrInput, barOriSel, barSideSel].forEach(el => {
+    el.addEventListener("change", onSettingChanged);
+  });
 
   saveBtn.addEventListener("click", saveSettingsToCookie);
   loadBtn.addEventListener("click", () => loadSettingsFromCookie(false));
@@ -777,7 +906,7 @@
       hiLabel.textContent = formatHi(name, octave);
       detail.textContent = `Hz: ${f.toFixed(2)} / Note: ${name}${octave} / Cents: ${cents >= 0 ? "+" : ""}${cents}`;
 
-      // ===== グラフ：時間ベースで点を追加（ms設定で制御） =====
+      // グラフ：設定msごとに点を追加
       if (nowT - lastGraphSampleT >= (GRAPH_SAMPLE_MS / 1000)) {
         lastGraphSampleT = nowT;
 
@@ -792,12 +921,11 @@
         drawGraph();
       }
 
-      // ===== ビブラート解析 =====
+      // ビブラート解析
       vibSeries.push({ t: nowT, midiFloat });
       const vibCut = nowT - VIB_WINDOW_SEC;
       while (vibSeries.length && vibSeries[0].t < vibCut) vibSeries.shift();
 
-      // 判定（点の追加と同じ周期でOK）
       if (history.length % 3 === 0) {
         const vib = estimateVibratoQuality(vibSeries);
 
@@ -827,7 +955,6 @@
       }
 
     } else {
-      // 無音
       hiLabel.textContent = "---";
       detail.textContent = `Hz: -- / Note: -- / Cents: --`;
 
@@ -849,7 +976,14 @@
     buf = new Float32Array(analyser.fftSize);
 
     src = audioCtx.createMediaStreamSource(stream);
-    src.connect(analyser);
+
+    // ★ GainNode でブースト（最大4.0）
+    gainNode = audioCtx.createGain();
+    gainNode.gain.value = MIC_GAIN;
+
+    // 接続：src → gain → analyser
+    src.connect(gainNode);
+    gainNode.connect(analyser);
 
     startBtn.disabled = true;
     stopBtn.disabled = false;
@@ -867,6 +1001,7 @@
     updateStats();
     drawGraph();
     setVibUI("OFF", 0);
+    applyMicGainUI(Number(micGainR.value));
 
     render();
   }
@@ -880,6 +1015,8 @@
 
     if (audioCtx) audioCtx.close();
     audioCtx = null;
+
+    gainNode = null;
 
     startBtn.disabled = false;
     stopBtn.disabled = true;
